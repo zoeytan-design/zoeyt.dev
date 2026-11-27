@@ -28,6 +28,25 @@ npm run preview    # 本地预览构建结果
 | 手机 | 精简穿越，工作室底部显示可点的作品列表，不需要 hover，也不请求陀螺仪权限。 |
 | 减少动态 | `prefers-reduced-motion`：不放大、不做视差和微动，锁面改为淡出，所有入口都还在。 |
 
+## Motion gallery 章节（demo/motion-gallery 分支）
+
+进入工作室后继续往下滚，是一部分章节的滚动影片：
+
+| 章节 | 动作 |
+|---|---|
+| 01 About | 奶油色幕布从工作室下方升起盖住画面（顶部是弧形边缘）；标题逐行从遮罩里滑出；自我介绍随滚动一个词一个词由浅变深；一圈环形文字跟着滚动转动 |
+| 02 Process | 固定画面，一条波形线随滚动被“画”出来，三个步骤依次出现 |
+| 03 Archive | 锯齿圆环隧道无限推进，作品预览从中心飞出 |
+| Work 01…N | 每件作品一章，深浅底色交替；预览从一个圆形“孔”逐渐打开成完整画面，再浮出标题、简介和 View project |
+| Outro | 结语、View all work、Return to the door |
+
+常驻元素：左下角是章节名和进度点（可以点击跳转），右下角是配色切换（demo 专用）。顶部导航会根据当前底色自动切换深色或浅色。
+
+- **章节文案**：`src/config/chapters.ts`（全部标注为 Draft copy）
+- **配色**：`src/config/themes.ts`，有三组提议：Night Studio / Cobalt Garden / Moss & Moon。确定后修改 `defaultTheme`，再把 `App.tsx` 里的 `PalettePicker` 拿掉。也可以用网址 `?theme=cobalt` 直接预览。
+- **章节组件**：`src/chapters/Chapters.tsx`；滚动工具：`src/chapters/motion.ts`
+- **减少动态模式**：固定章节会缩短为一个画面高度，所有内容直接以完成状态显示。
+
 ## 占位内容（全部有标注）
 
 - **场景视觉**：手绘矢量 SVG 占位（目标是高质量渲染图／插画）。页面上方标注 `Prototype · placeholder visuals`。

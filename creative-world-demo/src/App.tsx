@@ -9,6 +9,9 @@ import { getSelectedProjects, site } from './config/site';
 import { computeKeyhole, computeStage, keyholeMaxScale } from './scene/geometry';
 import { useInert, useMediaQuery, useViewport } from './hooks/useEnvironment';
 import { audio } from './audio/AudioManager';
+import Chapters from './chapters/Chapters';
+import ChapterIndicator, { PalettePicker } from './components/ChapterIndicator';
+import { applyTheme, initialThemeId } from './config/themes';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -20,6 +23,8 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
 
 const DIM_LOCKED = 0.5;
 const DIM_OPEN = 0.1;
+/** Extra scroll (in viewport heights) during which the studio holds still before the chapters slide over it. */
+const STUDIO_HOLD = 0.7;
 
 function hasEnteredBefore() {
   try {
@@ -45,6 +50,8 @@ export default function App() {
   const [panel, setPanel] = useState<null | 'work' | 'about'>(null);
   const [caseId, setCaseId] = useState<string | null>(null);
   const [caseReturn, setCaseReturn] = useState<HTMLElement | null>(null);
+  const [themeId, setThemeId] = useState(initialThemeId);
+  useLayoutEffect(() => applyTheme(themeId), [themeId]);
 
   // DOM refs
   const layerRefs = {
@@ -59,7 +66,7 @@ export default function App() {
   const entranceRef = useRef<HTMLDivElement>(null);
   const studioUiRef = useRef<HTMLDivElement>(null);
   const experienceRef = useRef<HTMLDivElement>(null);
-  const spacerRef = useRef<HTMLDivElement>(null);
+  const introRef = useRef<HTMLElement>(null);
   const workBtnRef = useRef<HTMLButtonElement>(null);
   const keyTl = useRef<gsap.core.Timeline | null>(null);
 
@@ -118,16 +125,16 @@ export default function App() {
 
   // Scroll → progress. Smoothed with a short tween (no smoothing for reduced motion).
   useLayoutEffect(() => {
-    const spacer = spacerRef.current;
-    if (!spacer) return;
+    const intro = introRef.current;
+    if (!intro) return;
     if (returning && anim.current.p === 0 && zoneRef.current === 'door') {
       document.documentElement.classList.remove('scroll-locked');
-      window.scrollTo(0, document.documentElement.scrollHeight);
+      window.scrollTo(0, intro.offsetTop + window.innerHeight * site.travelViewports);
     }
     const st = ScrollTrigger.create({
-      trigger: spacer,
+      trigger: intro,
       start: 'top top',
-      end: 'bottom bottom',
+      end: () => `+=${window.innerHeight * site.travelViewports}`,
       onUpdate(self) {
         if (geo.current.reduced) {
           anim.current.p = self.progress;
@@ -176,6 +183,18 @@ export default function App() {
     audio.setDucked(caseId !== null);
   }, [anyDialog, caseId]);
 
+  // Arriving by keyboard/button: move focus from the (now inert) entrance into the studio.
+  useEffect(() => {
+    if (zone !== 'studio') return;
+    const a = document.activeElement;
+    if (!a || a === document.body || entranceRef.current?.contains(a)) {
+      // after this commit's inert changes have been applied
+      requestAnimationFrame(() =>
+        studioUiRef.current?.querySelector<HTMLElement>('.studio-title')?.focus({ preventScroll: true })
+      );
+    }
+  }, [zone]);
+
   useInert(experienceRef, anyDialog);
   useInert(entranceRef, zone !== 'door');
   useInert(studioUiRef, zone !== 'studio');
@@ -208,7 +227,7 @@ export default function App() {
     keyTl.current = tl;
   }, [phase, reduced, finishUnlock, render]);
 
-  const maxScroll = () => document.documentElement.scrollHeight - window.innerHeight;
+  const maxScroll = () => (introRef.current?.offsetTop ?? 0) + window.innerHeight * site.travelViewports;
 
   const goToStudio = useCallback(
     (instant = false) => {
@@ -241,38 +260,54 @@ export default function App() {
       </a>
 
       <div className="experience" ref={experienceRef}>
-        <div className="viewport">
-          <Studio
-            refs={layerRefs}
-            box={box}
-            projects={projects}
-            showExhibits={!compact}
-            interactive={zone === 'studio' && !anyDialog}
-            parallax={finePointer && !reduced && zone === 'studio' && !anyDialog}
-            onOpen={openCase}
-          />
-          <div className="dimmer" ref={dimRef} />
-          <LockPlate ref={plateRef} keyhole={keyhole} vw={vw} vh={vh} />
-          <div className="key-layer" aria-hidden="true">
-            <Key ref={keyRef} keyhole={keyhole} />
+        <section
+          className="intro"
+          ref={introRef}
+          data-chapter={zone === 'door' ? 'Entrance' : 'Studio'}
+          style={{ height: vh * (1 + site.travelViewports + STUDIO_HOLD) }}
+        >
+          <div className="viewport">
+            {/* Studio copy first in DOM so keyboard order is: copy → exhibits */}
+            <StudioUI ref={studioUiRef} projects={projects} showStrip={compact} onOpen={openCase} />
+            <Studio
+              refs={layerRefs}
+              box={box}
+              projects={projects}
+              showExhibits={!compact}
+              interactive={zone === 'studio' && !anyDialog}
+              parallax={finePointer && !reduced && zone === 'studio' && !anyDialog}
+              onOpen={openCase}
+            />
+            <div className="dimmer" ref={dimRef} />
+            <LockPlate ref={plateRef} keyhole={keyhole} vw={vw} vh={vh} />
+            <div className="key-layer" aria-hidden="true">
+              <Key ref={keyRef} keyhole={keyhole} />
+            </div>
+            <EntranceUI
+              ref={entranceRef}
+              phase={phase}
+              keyhole={keyhole}
+              onEnter={onEnter}
+              onScrollIn={() => goToStudio()}
+              onViewWork={() => {
+                goToStudio(true);
+                setPanel('work');
+              }}
+              onSkip={() => goToStudio()}
+            />
           </div>
-          <StudioUI ref={studioUiRef} projects={projects} showStrip={compact} onOpen={openCase} />
-          <EntranceUI
-            ref={entranceRef}
-            phase={phase}
-            keyhole={keyhole}
-            onEnter={onEnter}
-            onScrollIn={() => goToStudio()}
-            onViewWork={() => {
-              goToStudio(true);
-              setPanel('work');
-            }}
-            onSkip={() => goToStudio()}
-          />
-          <div className="grain" aria-hidden="true" />
-        </div>
-        <div className="spacer" ref={spacerRef} style={{ height: vh * (1 + site.travelViewports) }} />
+        </section>
+        {phase === 'unlocked' && (
+          <Chapters projects={projects} onOpen={openCase} onWork={() => setPanel('work')} onDoor={backToDoor} />
+        )}
       </div>
+      <div className="grain" aria-hidden="true" />
+      {phase === 'unlocked' && zone !== 'door' && (
+        <>
+          <ChapterIndicator />
+          <PalettePicker value={themeId} onChange={setThemeId} />
+        </>
+      )}
 
       <Nav
         arrived={zone === 'studio'}

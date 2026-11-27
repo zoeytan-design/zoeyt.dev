@@ -143,7 +143,7 @@ export const StudioUI = forwardRef<
     <div className="studio-ui" ref={ref}>
       <div className="studio-copy">
         <p className="eyebrow">{site.name}</p>
-        <h2 className="studio-title">{site.welcome}</h2>
+        <h2 className="studio-title" tabIndex={-1}>{site.welcome}</h2>
         <p className="studio-line">{site.positioning}</p>
         {!showStrip && <p className="studio-help">Select a work on display, or open Work for the full list.</p>}
       </div>
