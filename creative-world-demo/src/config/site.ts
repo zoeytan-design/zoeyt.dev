@@ -25,8 +25,8 @@ export const site = {
   parallaxMax: 14,
 
   audio: {
-    entrance: '/audio/entrance.mp3',
-    studio: '/audio/studio.mp3',
+    entrance: `${import.meta.env.BASE_URL}audio/entrance.mp3`,
+    studio: `${import.meta.env.BASE_URL}audio/studio.mp3`,
     volume: 0.55,
     /** Studio music volume multiplier while a case panel is open. */
     duckFactor: 0.3,
